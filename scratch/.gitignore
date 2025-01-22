@@ -1,7 +1,8 @@
 # Ignore everything on scratch by default, except the provided examples
 /*
 !.gitignore
-
+!output/
+!topology/
 !nested-subdir/
 !subdir/
 !scratch-simulator.cc
