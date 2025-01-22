@@ -80,8 +80,8 @@ uint32_t enable_trace = 1;
 
 uint32_t buffer_size = 16;
 
-uint32_t qlen_dump_interval = 1000, qlen_mon_interval = 100;
-uint64_t qlen_mon_start = 0, qlen_mon_end = 2100000000;
+uint32_t qlen_dump_interval = 1000, qlen_mon_interval = 10;
+uint64_t qlen_mon_start = 0, qlen_mon_end = 1500000;
 string qlen_mon_file;
 
 unordered_map<uint64_t, uint32_t> rate2kmax, rate2kmin;
@@ -108,8 +108,8 @@ struct Interface {
   bool up;
   uint64_t delay;
   uint64_t bw;
-
-  Interface() : idx(0), up(false) {}
+  uint64_t n_u;
+  Interface() : idx(0), up(false),n_u(0) {}
 };
 map<Ptr<Node>, map<Ptr<Node>, Interface>> nbr2if;
 // Mapping destination to next hop for each node: <node, <dest, <nexthop0, ...>
@@ -137,6 +137,7 @@ Ipv4Address node_id_to_ip(uint32_t id) {
 uint32_t ip_to_node_id(Ipv4Address ip) { return (ip.Get() >> 8) & 0xffff; }
 
 void get_pfc(FILE *fout, Ptr<QbbNetDevice> dev, uint32_t type) {
+  NS_LOG_UNCOND("get_pfc called");
   fprintf(fout, "%lu %u %u %u %u\n", Simulator::Now().GetTimeStep(),
           dev->GetNode()->GetId(), dev->GetNode()->GetNodeType(),
           dev->GetIfIndex(), type);
@@ -153,6 +154,40 @@ struct QlenDistribution {
     cnt[kb]++;
   }
 };
+//link speed in gbps
+int link_speed = 200;
+//map<uint32_t, map<uint32_t, uint32_t>> queue_result;
+void monitor_util(FILE *link_util, NodeContainer *n) {
+  //std::cout<<"start_util"<<Simulator::Now().GetTimeStep()<<"\n";
+  int max_data = link_speed*qlen_mon_interval;
+  for (uint32_t i = 0; i < n->GetN(); i++) {
+    if (n->Get(i)->GetNodeType() == 1) { // is switch
+      Ptr<SwitchNode> sw = DynamicCast<SwitchNode>(n->Get(i));
+      
+      
+      for (uint32_t j = 1; j < sw->GetNDevices(); j++) {
+        uint32_t size = 0;
+
+        size = sw->m_mmu->utlcntr[j];
+        
+        sw->m_mmu->utlcntr[j] = 0;
+        
+        
+        //if (size > 0)
+          fprintf(link_util, "time %lu node %u port %u util %u \n", Simulator::Now().GetTimeStep(), i, j, size);
+       
+      }
+      fflush(link_util);
+      
+    }
+  }
+  fflush(link_util);
+  if (Simulator::Now().GetTimeStep()< qlen_mon_end)
+    Simulator::Schedule(NanoSeconds(qlen_mon_interval), &monitor_util,
+                      link_util, n);
+}
+
+
 map<uint32_t, map<uint32_t, uint32_t>> queue_result;
 void monitor_buffer(FILE *qlen_output, NodeContainer *n) {
   for (uint32_t i = 0; i < n->GetN(); i++) {
@@ -172,7 +207,7 @@ void monitor_buffer(FILE *qlen_output, NodeContainer *n) {
         //	vector<uint32_t> v;
         //	queue_result[i][j] = v;
         // }
-        if (size >= 1000) {
+        if (size >= 10) {
           queue_result[i][j] = size; // .push_back(size);
           if (test == 0) {
             test = 1;
@@ -596,10 +631,15 @@ bool SetupNetwork(void (*qp_finish)(FILE *, Ptr<RdmaQueuePair>)) {
   //
   // Assign IP to each server
   //
+
+//  FILE *qlen_output = fopen(qlen_mon_file.c_str(), "w");
+
+  
   for (uint32_t i = 0; i < node_num; i++) {
     if (n.Get(i)->GetNodeType() == 0) {
       serverAddress.resize(i + 1);
       serverAddress[i] = node_id_to_ip(i);
+      //fprintf(qlen_output,"i: %d ip:%d\n", i,serverAddress[i] );
     }
   }
 
@@ -847,7 +887,9 @@ bool SetupNetwork(void (*qp_finish)(FILE *, Ptr<RdmaQueuePair>)) {
     if (nid >= n.GetN()) {
       continue;
     }
+    
     trace_nodes = NodeContainer(trace_nodes, n.Get(nid));
+    //fprintf(qlen_output,"nid: %d  size: %d\n", nid,trace_nodes.GetN());
   }
 
   FILE *trace_output = fopen(trace_output_file.c_str(), "w");
@@ -901,6 +943,14 @@ bool SetupNetwork(void (*qp_finish)(FILE *, Ptr<RdmaQueuePair>)) {
   FILE *qlen_output = fopen(qlen_mon_file.c_str(), "w");
   Simulator::Schedule(NanoSeconds(qlen_mon_start), &monitor_buffer, qlen_output,
                       &n);
+  FILE *link_util = fopen("../../scratch/output/linkUtil.txt", "w");
+  Simulator::Schedule(NanoSeconds(qlen_mon_start), &monitor_util, link_util,
+                      &n);
+  //fprintf(qlen_output,"total nodes: %d\n", node_num);
+  //for (int i = 0; i <serverAddress.size();i++){
+    //fprintf(qlen_output,"node: %d ip: %x \n", i,serverAddress[i]);
+  //}
+
 
   return true;
 }

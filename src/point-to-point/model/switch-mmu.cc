@@ -26,7 +26,8 @@ namespace ns3 {
 		buffer_size = 12 * 1024 * 1024;
 		reserve = 4 * 1024;
 		resume_offset = 3 * 1024;
-
+		for (int i = 0; i < pCnt; i++)
+			utlcntr[i] = 0;
 		// headroom
 		shared_used_bytes = 0;
 		memset(hdrm_bytes, 0, sizeof(hdrm_bytes));
@@ -49,6 +50,7 @@ namespace ns3 {
 	}
 	void SwitchMmu::UpdateIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
 		uint32_t new_bytes = ingress_bytes[port][qIndex] + psize;
+		//utlcntr += psize;
 		if (new_bytes <= reserve){
 			ingress_bytes[port][qIndex] += psize;
 		}else {
@@ -63,6 +65,7 @@ namespace ns3 {
 	}
 	void SwitchMmu::UpdateEgressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
 		egress_bytes[port][qIndex] += psize;
+		//utlcntr[port] += psize;
 	}
 	void SwitchMmu::RemoveFromIngressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
 		uint32_t from_hdrm = std::min(hdrm_bytes[port][qIndex], psize);
@@ -73,6 +76,7 @@ namespace ns3 {
 	}
 	void SwitchMmu::RemoveFromEgressAdmission(uint32_t port, uint32_t qIndex, uint32_t psize){
 		egress_bytes[port][qIndex] -= psize;
+		utlcntr[port] += psize;
 	}
 	bool SwitchMmu::CheckShouldPause(uint32_t port, uint32_t qIndex){
 		return !paused[port][qIndex] && (hdrm_bytes[port][qIndex] > 0 || GetSharedUsed(port, qIndex) >= GetPfcThreshold(port));

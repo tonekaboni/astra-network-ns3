@@ -5,6 +5,7 @@ set(astra-sim-ns3-libs-list
   "libinternet"
   "libpoint-to-point"
   "libnetwork"
+  "libflow-monitor"
 )
 list(JOIN astra-sim-ns3-libs-list " " astra-sim-ns3-libs)
 set(astra-sim-dir "${PROJECT_SOURCE_DIR}/../../../")

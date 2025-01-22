@@ -3,7 +3,7 @@ USE_DYNAMIC_PFC_THRESHOLD 1
 
 PACKET_PAYLOAD_SIZE 1000
 
-TOPOLOGY_FILE ../../scratch/topology/8_nodes_1_switch_topology.txt
+TOPOLOGY_FILE ../../scratch/topology/8_nodes_4_switch_topology.txt
 FLOW_FILE ../../scratch/output/flow.txt
 TRACE_FILE ../../scratch/output/trace.txt
 TRACE_OUTPUT_FILE ../../scratch/output/mix.tr
@@ -11,7 +11,7 @@ FCT_OUTPUT_FILE ../../scratch/output/fct.txt
 PFC_OUTPUT_FILE ../../scratch/output/pfc.txt
 QLEN_MON_FILE ../../scratch/output/qlen.txt
 QLEN_MON_START 0
-QLEN_MON_END 20000
+QLEN_MON_END 150000
 
 
 SIMULATOR_STOP_TIME 40000000000000.00
